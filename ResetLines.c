@@ -1,6 +1,7 @@
 #include "Tetris.h"
 #include "raylib.h"
 #include <string.h>
+#include <stdio.h>
 
 extern int points;
 extern int linesCleared;
@@ -32,8 +33,9 @@ void ResetLines(int startLineY)
     }
 }
 
-int DeleteLines()
+void DeleteLines(int completedLines[])
 {
+    int index = 0;
     for (int y = 0; y < STAGE_HEIGHT - 1; y++)
     {
         int checkLine = 1;
@@ -58,8 +60,8 @@ int DeleteLines()
                 stage[offset] = 3;
             }
 
-            return y;
+            completedLines[index] = y;
+            index++;
         }
     }
-    return -1;
 }

@@ -8,4 +8,4 @@ int CheckCollision(const int tetrominoStartX, const int tetrominoStartY, const i
 
 void ResetLines(int startLineY);
 
-int DeleteLines();
+void DeleteLines(int completedLines[]);

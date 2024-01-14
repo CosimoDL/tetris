@@ -2,6 +2,7 @@
 #include <time.h>
 #include <string.h>
 #include "Tetris.h"
+#include <stdio.h>
 
 int stage[] = 
 {
@@ -232,22 +233,19 @@ const int zTetromino270[] =
 };
 
 const Color colorTypes[7] =
-    {
-        {102, 191, 255, 255}, // Sky Blue
-        {253, 249, 0, 255},   // Yellow
-        {230, 41, 55, 255},   // Red
-        {0, 228, 48, 255},    // Green
-        {0, 82, 172, 255},    // Dark Blue
-        {200, 122, 255, 255}, // Purple
-        {255, 161, 0, 255}    // Orange
+{
+    {102, 191, 255, 255}, // Sky Blue
+    {253, 249, 0, 255},   // Yellow
+    {230, 41, 55, 255},   // Red
+    {0, 228, 48, 255},    // Green
+    {0, 82, 172, 255},    // Dark Blue
+    {200, 122, 255, 255}, // Purple
+    {255, 161, 0, 255}    // Orange
 };
 
-Color blinkColor;
-Music music;
-Sound lineClear_sound;
 int windowWidth = 600;
 int windowHeight = 700; 
-int y;
+int y[STAGE_HEIGHT] = {-1};
 int points;
 int linesCleared;
 int blinkTimeCounter;
@@ -258,13 +256,16 @@ int startOffsetY;
 int currentTetrominoX;
 int currentTetrominoY;
 int currentColor;
-Sound drop_sound;
-Sound rotate_sound;
-float moveTetrominoDownTimer;
-float timeToMoveTetrominoDown;
 int currentTetrominoType;
 int currentRotation;
 int gameOver = 0;
+float moveTetrominoDownTimer;
+float timeToMoveTetrominoDown;
+Sound drop_sound;
+Sound rotate_sound;
+Color blinkColor;
+Music music;
+Sound lineClear_sound;
 time_t unixTime;
 
 const int *tetrominoTypes[7][4] =
@@ -278,7 +279,7 @@ const int *tetrominoTypes[7][4] =
         {lTetromino0, lTetromino90, lTetromino180, lTetromino270},
 };
 
-void drawTetromino(const Color currentColor, const int startOffsetX, const int startOffsetY, const int tetrominoStartX, const int tetrominoStartY, const int *tetromino)
+void DrawTetromino(const Color currentColor, const int startOffsetX, const int startOffsetY, const int tetrominoStartX, const int tetrominoStartY, const int *tetromino)
 {
     for (int y = 0; y < TETROMINO_SIZE; y++)
     {
@@ -294,12 +295,12 @@ void drawTetromino(const Color currentColor, const int startOffsetX, const int s
     }
 }
 
-void decreaseTimer(float *timer,float decreaseValue)
+void DecreaseTimer(float *timer,float decreaseValue)
 {
     *timer -= decreaseValue;
 }
 
-void blinkAnimation()
+void BlinkAnimation()
 {
     //Blink Animation before reset
     if (blinkTimeCounter > 0 && blinkTimeCounter <= BLINK_TIMER)
@@ -318,7 +319,13 @@ void blinkAnimation()
 
     if (blinkTimeCounter == BLINK_TIMER && y >= 0)
     {
-        ResetLines(y);
+        int index = 0;
+        while (y[index] != -1 && index < STAGE_HEIGHT)
+        {
+            ResetLines(y[index]);
+            y[index] = -1;
+            index++;
+        }
     }
 }
 
@@ -389,7 +396,7 @@ int main(int argc, char **argv, char **environ)
             //Increase tetromino's speed
             if (linesCleared >= 5 && moveTetrominoDownTimer >= 0.25)
             {
-                decreaseTimer(&moveTetrominoDownTimer, 0.05f);
+                DecreaseTimer(&moveTetrominoDownTimer, 0.05f);
                 linesCleared = 0;
             }
             if (IsKeyPressed(KEY_SPACE))
@@ -435,7 +442,6 @@ int main(int argc, char **argv, char **environ)
                 }
                 else
                 {
-    
                     for (int y = 0; y < TETROMINO_SIZE; y++)
                     {
                         for (int x = 0; x < TETROMINO_SIZE; x++)
@@ -454,7 +460,7 @@ int main(int argc, char **argv, char **environ)
                         }
                     }
 
-                    y = DeleteLines();
+                    DeleteLines(y);
 
                     currentTetrominoX = tetrominoStartX;
                     currentTetrominoY = tetrominoStartY;
@@ -471,7 +477,7 @@ int main(int argc, char **argv, char **environ)
                 gameOver = 1;
             }
 
-            blinkAnimation();
+            BlinkAnimation();
         
             BeginDrawing();
             ClearBackground(BLACK);
@@ -500,9 +506,9 @@ int main(int argc, char **argv, char **environ)
                 }
             }
         
-            drawTetromino(colorTypes[currentColor], startOffsetX, startOffsetY, currentTetrominoX, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]);
+            DrawTetromino(colorTypes[currentColor], startOffsetX, startOffsetY, currentTetrominoX, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]);
 
-            DrawText(TextFormat("POINTS: %i", points), 470, 100,20,YELLOW);
+            DrawText(TextFormat("POINTS: %i", points), 470, 100, 20, YELLOW);
         }
         else
         {
