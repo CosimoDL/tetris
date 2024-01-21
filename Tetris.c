@@ -245,8 +245,8 @@ const Color colorTypes[7] =
 
 int windowWidth = 600;
 int windowHeight = 700; 
-int y[STAGE_HEIGHT] = {-1};
-int points;
+int completedLinesYIndex[MAX_MULTILINES_COMPLETE] = {-1}; //Array containg the index on the y of the completed lines
+int linesCompleted;
 int linesCleared;
 int blinkTimeCounter;
 int tetrominoStartX;
@@ -317,13 +317,13 @@ void BlinkAnimation()
         blinkTimeCounter = 0;
     }
 
-    if (blinkTimeCounter == BLINK_TIMER && y >= 0)
+    if (blinkTimeCounter == BLINK_TIMER && completedLinesYIndex >= 0)
     {
         int index = 0;
-        while (y[index] != -1 && index < STAGE_HEIGHT)
+        while (completedLinesYIndex[index] != -1 && index < MAX_MULTILINES_COMPLETE)
         {
-            ResetLines(y[index]);
-            y[index] = -1;
+            ResetLines(completedLinesYIndex[index]);
+            completedLinesYIndex[index] = -1;
             index++;
         }
     }
@@ -340,7 +340,7 @@ void InitGame()
     currentTetrominoX = tetrominoStartX;
     currentTetrominoY = tetrominoStartY;
 
-    points = 0;
+    linesCompleted = 0;
     linesCleared = 0;
     blinkTimeCounter = 0;
 
@@ -378,10 +378,159 @@ void UnloadGameResources()
     UnloadSound(lineClear_sound);
 }
 
+void CheckingInput()
+{
+    if (IsKeyPressed(KEY_SPACE))
+    {
+        const int lastRotation = currentRotation;
+
+        currentRotation++;
+
+        if (currentRotation > 3)
+        {
+            currentRotation = 0;
+        }
+
+        PlaySound(rotate_sound);
+        if (CheckCollision(currentTetrominoX, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]))
+        {
+            currentRotation = lastRotation;
+            StopSound(rotate_sound);
+        }
+    }
+    if (IsKeyPressed(KEY_RIGHT))
+    {
+        // No need to check overflow, wall is your protector
+        if (!CheckCollision(currentTetrominoX + 1, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]))
+        {
+            currentTetrominoX++;
+        }
+    }
+    if (IsKeyPressed(KEY_LEFT))
+    {
+        // No need to check overflow, wall is your protector
+        if (!CheckCollision(currentTetrominoX - 1, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]))
+        {
+            currentTetrominoX--;
+        }
+    }
+    if (timeToMoveTetrominoDown <= 0 || IsKeyPressed(KEY_DOWN))
+    {
+        if (!CheckCollision(currentTetrominoX, currentTetrominoY + 1, tetrominoTypes[currentTetrominoType][currentRotation]))
+        {
+            currentTetrominoY++;
+            timeToMoveTetrominoDown = moveTetrominoDownTimer;
+        }
+        else
+        {
+            for (int y = 0; y < TETROMINO_SIZE; y++)
+            {
+                for (int x = 0; x < TETROMINO_SIZE; x++)
+                {
+                    const int offset = y * TETROMINO_SIZE + x;
+
+                    const int *tetromino = tetrominoTypes[currentTetrominoType][currentRotation];
+
+                    if (tetromino[offset] == 1)
+                    {
+                        const int offset_stage = (y + currentTetrominoY) * STAGE_WIDTH + (x + currentTetrominoX);
+
+                        stage[offset_stage] = 2; // Tetrominos value in the stage[] after collision
+                        PlaySound(drop_sound);
+                    }
+                }
+            }
+
+            DeleteLines(completedLinesYIndex);
+
+            currentTetrominoX = tetrominoStartX;
+            currentTetrominoY = tetrominoStartY;
+
+            currentTetrominoType = GetRandomValue(0, 6);
+            currentRotation = 0;
+            currentColor = GetRandomValue(0, 6);
+        }
+    }
+}
+
+void UpdateGame()
+{
+    UpdateMusicStream(music); // Update music buffer with new stream data
+
+    timeToMoveTetrominoDown -= GetFrameTime();
+
+    // Increase tetromino's speed
+    if (linesCleared >= 5 && moveTetrominoDownTimer >= 0.25)
+    {
+        DecreaseTimer(&moveTetrominoDownTimer, 0.05f);
+        linesCleared = 0;
+    }
+
+    CheckingInput();
+
+    // Check if the starting position for the new tetromino is occupied
+    if (CheckCollision(tetrominoStartX, tetrominoStartY, tetrominoTypes[currentTetrominoType][currentRotation]))
+    {
+        gameOver = 1;
+    }
+}
+
+void DrawGame()
+{
+    BeginDrawing();
+    ClearBackground(BLACK);
+
+    // Drawing the different tetrominos(Walls,Block)
+    for (int y = 0; y < STAGE_HEIGHT; y++)
+    {
+        for (int x = 0; x < STAGE_WIDTH; x++)
+        {
+            const int offset = y * STAGE_WIDTH + x;
+
+            if (stage[offset] == 1)
+            {
+                DrawRectangle(x * TILE_SIZE + startOffsetX, y * TILE_SIZE + startOffsetY, TILE_SIZE, TILE_SIZE, DARKGRAY); // Wall limits
+            }
+            else if (stage[offset] == 2)
+            {
+                DrawRectangle(x * TILE_SIZE + startOffsetX, y * TILE_SIZE + startOffsetY, TILE_SIZE, TILE_SIZE, DARKGREEN); // Block
+            }
+            else if (stage[offset] == 3)
+            {
+                DrawRectangle(x * TILE_SIZE + startOffsetX, y * TILE_SIZE + startOffsetY, TILE_SIZE, TILE_SIZE, blinkColor); // Complete Line
+            }
+
+            DrawRectangleLines(x * TILE_SIZE + startOffsetX, y * TILE_SIZE + startOffsetY, TILE_SIZE, TILE_SIZE, WHITE); // Cells outlines
+        }
+    }
+
+    DrawTetromino(colorTypes[currentColor], startOffsetX, startOffsetY, currentTetrominoX, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]);
+
+    DrawText(TextFormat("Lines: %i", linesCompleted), 470, 100, 20, YELLOW);
+}
+
+void ResetGame()
+{
+    ClearBackground(WHITE);
+    DrawText("PRESS [ENTER] TO PLAY AGAIN", GetScreenWidth() / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, GetScreenHeight() / 2 - 50, 20, BLACK);
+    if (IsKeyPressed(KEY_ENTER))
+    {
+        for (int y = 0; y < STAGE_HEIGHT - 1; y++)
+        {
+            int yOffset = y * STAGE_WIDTH + 1;
+            int sizeToSet = (STAGE_WIDTH - 2) * sizeof(int);
+            memset(&stage[yOffset], 0, sizeToSet);
+        }
+        UnloadGameResources();
+        InitGame();
+        gameOver = 0;
+    }
+}
+
 int main(int argc, char **argv, char **environ)
 {
     InitWindow(windowWidth, windowHeight, "Title");
-    InitAudioDevice(); 
+    InitAudioDevice();
 
     InitGame();
 
@@ -389,155 +538,20 @@ int main(int argc, char **argv, char **environ)
     {
         if (!gameOver)
         {
-            UpdateMusicStream(music); // Update music buffer with new stream data
-
-            timeToMoveTetrominoDown -= GetFrameTime();
-
-            //Increase tetromino's speed
-            if (linesCleared >= 5 && moveTetrominoDownTimer >= 0.25)
-            {
-                DecreaseTimer(&moveTetrominoDownTimer, 0.05f);
-                linesCleared = 0;
-            }
-            if (IsKeyPressed(KEY_SPACE))
-            {   
-                const int lastRotation = currentRotation;
-
-                currentRotation++;
-
-                if (currentRotation > 3)
-                {   
-                    currentRotation = 0;
-                }
-
-                PlaySound(rotate_sound);
-                if (CheckCollision(currentTetrominoX, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]))
-                {
-                    currentRotation = lastRotation;
-                    StopSound(rotate_sound);
-                }
-            }
-            if (IsKeyPressed(KEY_RIGHT))
-            {
-                // No need to check overflow, wall is your protector
-                if (!CheckCollision(currentTetrominoX + 1, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]))
-                {
-                    currentTetrominoX++;
-                }
-            }
-            if (IsKeyPressed(KEY_LEFT))
-            {
-                // No need to check overflow, wall is your protector
-                if (!CheckCollision(currentTetrominoX - 1, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]))
-                {
-                    currentTetrominoX--;
-                }
-            }
-            if (timeToMoveTetrominoDown <= 0 || IsKeyPressed(KEY_DOWN))
-            {
-                if (!CheckCollision(currentTetrominoX, currentTetrominoY + 1, tetrominoTypes[currentTetrominoType][currentRotation]))
-                {
-                    currentTetrominoY++;
-                    timeToMoveTetrominoDown = moveTetrominoDownTimer;
-                }
-                else
-                {
-                    for (int y = 0; y < TETROMINO_SIZE; y++)
-                    {
-                        for (int x = 0; x < TETROMINO_SIZE; x++)
-                        {
-                            const int offset = y * TETROMINO_SIZE + x;
-
-                            const int *tetromino = tetrominoTypes[currentTetrominoType][currentRotation];
-
-                            if (tetromino[offset] == 1)
-                            {
-                                const int offset_stage = (y + currentTetrominoY) * STAGE_WIDTH + (x + currentTetrominoX);
-
-                                stage[offset_stage] = 2; // Tetrominos value in the stage[] after collision
-                                PlaySound(drop_sound);
-                            }
-                        }
-                    }
-
-                    DeleteLines(y);
-
-                    currentTetrominoX = tetrominoStartX;
-                    currentTetrominoY = tetrominoStartY;
-
-                    currentTetrominoType = GetRandomValue(0, 6);
-                    currentRotation = 0;
-                    currentColor = GetRandomValue(0, 6);
-                }
-            }
-
-            // Check if the starting position for the new tetromino is occupied
-            if (CheckCollision(tetrominoStartX, tetrominoStartY, tetrominoTypes[currentTetrominoType][currentRotation]))
-            {
-                gameOver = 1;
-            }
-
+            UpdateGame();
             BlinkAnimation();
-        
-            BeginDrawing();
-            ClearBackground(BLACK);
-        
-            //Drawing the different tetrominos(Walls,Block)
-            for (int y = 0; y < STAGE_HEIGHT; y++)
-            {
-                for (int x = 0; x < STAGE_WIDTH; x++)
-                {
-                    const int offset = y * STAGE_WIDTH + x;
-
-                    if (stage[offset] == 1)
-                    {
-                        DrawRectangle(x * TILE_SIZE + startOffsetX, y * TILE_SIZE + startOffsetY, TILE_SIZE, TILE_SIZE, DARKGRAY); //Wall limits
-                    }
-                    else if (stage[offset] == 2)
-                    {
-                        DrawRectangle(x * TILE_SIZE + startOffsetX, y * TILE_SIZE + startOffsetY, TILE_SIZE, TILE_SIZE, DARKGREEN); //Block
-                    }
-                    else if (stage[offset] == 3)
-                    {
-                        DrawRectangle(x * TILE_SIZE + startOffsetX, y * TILE_SIZE + startOffsetY, TILE_SIZE, TILE_SIZE, blinkColor); //Complete Line
-                    }
-
-                    DrawRectangleLines(x * TILE_SIZE + startOffsetX, y * TILE_SIZE + startOffsetY, TILE_SIZE, TILE_SIZE, WHITE); //Cells outlines
-                }
-            }
-        
-            DrawTetromino(colorTypes[currentColor], startOffsetX, startOffsetY, currentTetrominoX, currentTetrominoY, tetrominoTypes[currentTetrominoType][currentRotation]);
-
-            DrawText(TextFormat("POINTS: %i", points), 470, 100, 20, YELLOW);
+            DrawGame();
         }
         else
         {
-            ClearBackground(WHITE);
-            DrawText("PRESS [ENTER] TO PLAY AGAIN", GetScreenWidth()/2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20)/2, GetScreenHeight()/2 - 50, 20, BLACK);
-            if (IsKeyPressed(KEY_ENTER))
-            {
-                for (int y = 0; y < STAGE_HEIGHT-1; y++)
-                {
-                    for (int x = 1; x < STAGE_WIDTH-1; x++)
-                        {
-                            int newOffset = y * STAGE_WIDTH + x;
-                            stage[newOffset] = 0;
-                        }  
-                }
-                UnloadGameResources();
-                InitGame();
-                gameOver = 0;
-            }
-
+            ResetGame();
         }
+
         EndDrawing();
     }
 
     CloseAudioDevice(); // Close audio device
-    CloseWindow(); // Close window
+    CloseWindow();      // Close window
 
     return 0;
 }
-
-
-

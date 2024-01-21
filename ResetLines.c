@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
-extern int points;
+extern int linesCompleted;
 extern int linesCleared;
 extern Sound lineClear_sound;
 extern int stage[];
@@ -11,12 +11,11 @@ extern int blinkTimeCounter;
 
 void ResetLines(int startLineY)
 {
-    points++;
+    linesCompleted++;
     linesCleared++;
     PlaySound(lineClear_sound);
     const int offset = startLineY * STAGE_WIDTH + 1;
     memset(stage + offset, 0, (STAGE_WIDTH - 2) * sizeof(int));
-
     for (int y = startLineY; y >= 0; y--)
     {
         for (int x = 1; x < STAGE_WIDTH - 1; x++)
@@ -33,7 +32,7 @@ void ResetLines(int startLineY)
     }
 }
 
-void DeleteLines(int completedLines[])
+void DeleteLines(int *completedLines)
 {
     int index = 0;
     for (int y = 0; y < STAGE_HEIGHT - 1; y++)
@@ -57,7 +56,7 @@ void DeleteLines(int completedLines[])
             for (int x = 1; x < STAGE_WIDTH - 1; x++)
             {
                 const int offset = y * STAGE_WIDTH + x;
-                stage[offset] = 3;
+                stage[offset] = 3; //Blink status
             }
 
             completedLines[index] = y;
