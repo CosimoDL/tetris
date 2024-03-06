@@ -1,8 +1,9 @@
-#include "Tetris.h"
+#include "check_collision.h"
+#include "tetris_global_variables.h"
 
 extern int stage[];
 
-int CheckCollision(const int tetrominoStartX, const int tetrominoStartY, const int *tetromino)
+int check_collision(const int tetrominoStartX, const int tetrominoStartY, const int *tetromino)
 {
     for(int y = 0; y < TETROMINO_SIZE; y++)
     {

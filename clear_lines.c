@@ -1,19 +1,11 @@
-#include "Tetris.h"
-#include "raylib.h"
-#include <string.h>
-#include <stdio.h>
+#include "clear_lines.h"
+#include "tetris_global_variables.h"
 
-extern int linesCompleted;
-extern int linesCleared;
-extern Sound lineClear_sound;
-extern int stage[];
-extern int blinkTimeCounter;
-
-void ResetLines(int startLineY)
+void reset_lines(int startLineY)
 {
-    linesCompleted++;
-    linesCleared++;
-    PlaySound(lineClear_sound);
+    lines_completed++;
+    lines_cleared++;
+    PlaySound(line_clear_sound);
     const int offset = startLineY * STAGE_WIDTH + 1;
     memset(stage + offset, 0, (STAGE_WIDTH - 2) * sizeof(int));
     for (int y = startLineY; y >= 0; y--)
@@ -32,7 +24,7 @@ void ResetLines(int startLineY)
     }
 }
 
-void DeleteLines(int *completedLines)
+void delete_lines(int *completedLines)
 {
     int index = 0;
     for (int y = 0; y < STAGE_HEIGHT - 1; y++)
@@ -52,7 +44,7 @@ void DeleteLines(int *completedLines)
 
         if (checkLine)
         {
-            blinkTimeCounter++;
+            blink_time_counter++;
             for (int x = 1; x < STAGE_WIDTH - 1; x++)
             {
                 const int offset = y * STAGE_WIDTH + x;
