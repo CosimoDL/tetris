@@ -92,7 +92,6 @@ const int j_tetromino_270[] =
     0, 0, 0, 0,
 };
 
-
 const int o_tetromino[] =
 {
     1, 1, 0, 0,
@@ -132,7 +131,6 @@ const int s_tetromino_270[] =
     0, 1, 1, 0,
     0, 0, 1, 0,
 };
-
 
 const int t_tetromino_0[] =
 {
