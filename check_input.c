@@ -1,28 +1,7 @@
-#include "check_input_and_collision.h"
-#include "clear_lines.h"
-
-int check_collision(const int tetrominoStartX, const int tetrominoStartY, const int *tetromino)
-{
-    for(int y = 0; y < TETROMINO_SIZE; y++)
-    {
-        for(int x = 0; x < TETROMINO_SIZE; x++)
-        {
-            const int offset = y * TETROMINO_SIZE + x;
-
-            if(tetromino[offset] == 1)
-            {
-                const int offset_stage = (y + tetrominoStartY) * STAGE_WIDTH + (x +tetrominoStartX);
-
-                if (stage[offset_stage] != 0)
-                {
-                    return 1;
-                }
-            }
-        }
-    }
-
-    return 0;
-}
+#include "check_input.h"
+#include "tetris_global_variables.h"
+#include "delete_lines.h"
+#include "check_collision.h"
 
 void check_input()
 {
